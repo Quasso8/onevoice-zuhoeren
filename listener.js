@@ -1,6 +1,6 @@
 import {relayOrigin} from './config.js'
 const el=id=>document.getElementById(id)
-const names={de:'Deutsch',ru:'Русский',uk:'Українська',en:'English',es:'Español',fr:'Français',pl:'Polski',it:'Italiano',tr:'Türkçe',pt:'Português',nl:'Nederlands'}
+const names={ru:'Русский',uk:'Українська',en:'English',es:'Español',fr:'Français',pl:'Polski',it:'Italiano',tr:'Türkçe',pt:'Português',nl:'Nederlands'}
 for(const [id,name] of Object.entries(names))el('lang').add(new Option(name,id))
 const query=new URLSearchParams(location.search).get('lang')
 el('lang').value=Object.hasOwn(names,query)?query:'ru'
@@ -50,8 +50,9 @@ function connect(){
     const data=JSON.parse(e.data)
     if(data.type==='state'){
       if(session!==data.session){flush();session=data.session;el('lines').replaceChildren();el('hint').hidden=false}
-      if(data.live && data.langs.length && !selected && !data.langs.includes(el('lang').value)){
-        el('lang').value=data.langs[0];ws.close();connect();return
+      const available=data.langs.filter(code=>Object.hasOwn(names,code))
+      if(data.live && available.length && !selected && !available.includes(el('lang').value)){
+        el('lang').value=available[0];ws.close();connect();return
       }
       if(data.muted && currentUrl)flush()
       status(!data.live?'Warten auf den Gottesdienst':data.muted?'Mikrofon stumm':data.langs.includes(el('lang').value)?'Live · Verbunden':'Diese Sprache ist gerade nicht aktiv')
