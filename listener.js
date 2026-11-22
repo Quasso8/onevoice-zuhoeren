@@ -1,12 +1,19 @@
 import {relayOrigin} from './config.js'
 const el=id=>document.getElementById(id)
 const names={ru:'Русский',uk:'Українська',en:'English',es:'Español',fr:'Français',pl:'Polski',it:'Italiano',tr:'Türkçe',pt:'Português',nl:'Nederlands'}
-for(const [id,name] of Object.entries(names))el('lang').add(new Option(name,id))
-const query=new URLSearchParams(location.search).get('lang')
-el('lang').value=Object.hasOwn(names,query)?query:'ru'
 const player=el('voice')
 let socket, reconnect, active=false, last=0, session='', currentUrl='', blocked=false
-let selected=Object.hasOwn(names,query)
+let preferred=new URLSearchParams(location.search).get('lang')
+function setLanguages(langs){
+  const menu=el('lang'), available=langs.filter(code=>Object.hasOwn(names,code))
+  const choice=available.includes(preferred)?preferred:available[0]||''
+  if([...menu.options].map(option=>option.value).join(',')!==available.join(',')){
+    menu.replaceChildren(...available.map(code=>new Option(names[code],code)))
+  }
+  menu.value=choice
+  menu.disabled=!choice
+  el('play').disabled=!choice&&!active
+}
 const queue=[]
 const status=text=>{el('status').textContent=text}
 function release(){
@@ -42,21 +49,22 @@ player.onerror=()=>{if(currentUrl){release();el('audio-error').textContent='Audi
 el('resume').onclick=()=>{void startMedia()}
 function connect(){
   clearTimeout(reconnect);flush()
-  const url=new URL('/listen',relayOrigin);url.protocol='wss:';url.searchParams.set('lang',el('lang').value)
+  const channel=active?el('lang').value:''
+  const url=new URL(channel?'/listen':'/languages',relayOrigin);url.protocol='wss:'
+  if(channel)url.searchParams.set('lang',channel)
+  socket?.close()
   const ws=new WebSocket(url);socket=ws;last=Date.now();status('Verbindung wird aufgebaut …')
   ws.onmessage=e=>{
-    if(ws!==socket || !active)return
+    if(ws!==socket)return
     last=Date.now()
     const data=JSON.parse(e.data)
     if(data.type==='state'){
       if(session!==data.session){flush();session=data.session;el('lines').replaceChildren();el('hint').hidden=false}
-      const available=data.langs.filter(code=>Object.hasOwn(names,code))
-      if(data.live && available.length && !selected && !available.includes(el('lang').value)){
-        el('lang').value=available[0];ws.close();connect();return
-      }
+      setLanguages(data.langs)
+      if(active && el('lang').value!==channel){connect();return}
       if(data.muted && currentUrl)flush()
-      status(!data.live?'Warten auf den Gottesdienst':data.muted?'Mikrofon stumm':data.langs.includes(el('lang').value)?'Live · Verbunden':'Diese Sprache ist gerade nicht aktiv')
-    }else if(data.type==='audio'){
+      status(!el('lang').value?'Warten auf aktive Sprachen vom PC':!active?'Bereit zum Zuhören':!data.live?'Warten auf den Gottesdienst':data.muted?'Mikrofon stumm':'Live · Verbunden')
+    }else if(active && data.type==='audio'){
       const line=document.createElement('p');line.textContent=data.text;el('lines').append(line)
       if(el('lines').children.length>40)el('lines').firstChild.remove()
       el('hint').hidden=true
@@ -65,16 +73,16 @@ function connect(){
       advance()
     }else if(data.type==='gap' || data.type==='mute'){flush()}
   }
-  ws.onclose=()=>{if(ws!==socket||!active)return;flush();status('Verbindung unterbrochen · Neuer Versuch …');reconnect=setTimeout(connect,2500)}
+  ws.onclose=()=>{if(ws!==socket)return;flush();setLanguages([]);status('Verbindung unterbrochen · Neuer Versuch …');reconnect=setTimeout(connect,2500)}
 }
-setInterval(()=>{if(active&&Date.now()-last>30000)status('Sendepause · Warten auf Verbindung zum PC')},4000)
+setInterval(()=>{if(Date.now()-last>30000){setLanguages([]);flush();status('Warten auf Verbindung zum PC')}},4000)
 el('lang').onchange=()=>{
-  selected=true
+  preferred=el('lang').value
   el('lines').replaceChildren();el('hint').hidden=false
   if(active){socket?.close();connect()}
 }
 el('play').onclick=async()=>{
-  if(active){active=false;player.pause();clearTimeout(reconnect);socket?.close();flush();status('Wiedergabe beendet');el('play').textContent='Zuhören starten';return}
+  if(active){active=false;player.pause();connect();el('play').textContent='Zuhören starten';return}
   if(!relayOrigin){status('Die Zuhörerseite wird eingerichtet.');return}
   try{
     try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch{}
@@ -84,3 +92,4 @@ el('play').onclick=async()=>{
     void startMedia()
   }catch{active=false;el('play').textContent='Zuhören starten';status('Audiowiedergabe oder Verbindung konnte nicht starten.')}
 }
+if(relayOrigin)connect()

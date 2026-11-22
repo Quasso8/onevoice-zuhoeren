@@ -1,10 +1,10 @@
 <!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Gottesdienst mithören · OneVoice AI</title><link rel="stylesheet" href="./style.css"></head>
 <body><header><img src="./logo.jpg" alt="OneVoice AI"></header><main>
-<p id="status" role="status">Bereit zum Verbinden</p><h1>Gottesdienst mithören</h1>
-<label for="lang">Sprache / Language</label><select id="lang"></select>
-<button id="play">Zuhören starten</button>
+<p id="status" role="status">Aktive Sprachen werden geladen …</p><h1>Gottesdienst mithören</h1>
+<label for="lang">Sprache / Language</label><select id="lang" disabled></select>
+<button id="play" disabled>Zuhören starten</button>
 <audio id="voice" playsinline preload="auto" src="./start.wav"></audio>
 <button id="resume" hidden>Ton wieder einschalten</button><p id="audio-error" role="status"></p>
 <section><h2>Live-Mitschrift</h2><p id="hint">Während der Predigt erscheinen hier die übersetzten Sätze.</p><div id="lines" role="log"></div></section>
-</main><script type="module" src="./listener.js?v=803"></script></body></html>
+</main><script type="module" src="./listener.js?v=809"></script></body></html>
