@@ -1,2 +1,1 @@
-// Set to the deployed workers.dev origin before publishing GitHub Pages.
-export const relayOrigin = ''
+export const relayOrigin = 'https://onevoice-gottesdienst-relay.joelschn-js.workers.dev'
