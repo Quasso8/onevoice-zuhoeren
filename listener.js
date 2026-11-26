@@ -14,6 +14,11 @@ function setLanguages(langs){
   menu.disabled=!choice
   el('play').disabled=!choice&&!active
 }
+const transcript=new LiveTranscript(el('lines'))
+function selectTranscript(lang){
+  transcript.select(session,lang)
+  el('hint').hidden=transcript.channel.rows.length>0
+}
 const queue=[]
 const status=text=>{el('status').textContent=text}
 function release(){
@@ -59,14 +64,15 @@ function connect(){
     last=Date.now()
     const data=JSON.parse(e.data)
     if(data.type==='state'){
-      if(session!==data.session){flush();session=data.session;el('lines').replaceChildren();el('hint').hidden=false}
+      if(data.session && session!==data.session){flush();session=data.session}
       setLanguages(data.langs)
+      if(el('lang').value)selectTranscript(el('lang').value)
       if(active && el('lang').value!==channel){connect();return}
       if(data.muted && currentUrl)flush()
       status(!el('lang').value?'Warten auf aktive Sprachen vom PC':!active?'Bereit zum Zuhören':!data.live?'Warten auf den Gottesdienst':data.muted?'Mikrofon stumm':'Live · Verbunden')
     }else if(active && data.type==='audio'){
-      const line=document.createElement('p');line.textContent=data.text;el('lines').append(line)
-      if(el('lines').children.length>40)el('lines').firstChild.remove()
+      selectTranscript(channel)
+      if(!transcript.add(data.id,data.text))return
       el('hint').hidden=true
       queue.push(data)
       while(queue.length>1 && queue.reduce((sum,m)=>sum+(m.duration||3),0)>15)queue.shift()
@@ -78,7 +84,7 @@ function connect(){
 setInterval(()=>{if(Date.now()-last>30000){setLanguages([]);flush();status('Warten auf Verbindung zum PC')}},4000)
 el('lang').onchange=()=>{
   preferred=el('lang').value
-  el('lines').replaceChildren();el('hint').hidden=false
+  selectTranscript(preferred)
   if(active){socket?.close();connect()}
 }
 el('play').onclick=async()=>{
